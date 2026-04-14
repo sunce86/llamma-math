@@ -123,9 +123,12 @@ pub fn extract_immutables(bytecode: &[u8], a: U256) -> Option<LlammaImmutables> 
     })
 }
 
+/// Check if `v` is 10^k for k ∈ [0, 18]. Max valid precision is 10^18
+/// (EVM uses 18 decimal places; tokens have 0-18 decimals).
 fn is_power_of_10(v: U256) -> bool {
     let mut p = U256::from(1u64);
     for _ in 0..19 {
+        // 0..19 covers 10^0 through 10^18
         if v == p {
             return true;
         }
