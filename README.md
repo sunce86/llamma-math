@@ -68,25 +68,26 @@ per-band fee) that was never deployed to the mint markets.
 | Crate | Description |
 |-------|-------------|
 | [`llamma-math`](crates/llamma-math) | Core math library. Stateless functions + `LlammaPool` for swap quotes. Only depends on `alloy-primitives`. |
-| [`llamma-adapter`](crates/llamma-adapter) | Reads on-chain state and constructs `LlammaPool` instances. Extracts immutables from bytecode, batch-reads bands via Multicall3. |
+| [`llamma-adapter`](crates/llamma-adapter) | Data-source agnostic pool construction from flat `RawLlammaState`. Bytecode immutables extraction, Vyper version auto-detection. |
 
 ## Usage
 
-### With llamma-adapter (reads pool from chain)
+### With llamma-adapter
 
 ```rust
-use llamma_adapter::{extract_immutables, build_pool};
+use llamma_adapter::{RawLlammaState, build_pool};
 
-// 1. Extract deploy-time constants from bytecode
-let bytecode = provider.get_code_at(amm_addr).await?;
-let a = /* read A() from contract */;
-let immutables = extract_immutables(&bytecode, a).unwrap();
+// Fill RawLlammaState from any source (RPC, substream, database)
+let state = RawLlammaState {
+    a, log_a_ratio, collateral_precision, borrowed_precision,
+    static_antifee: false,
+    fee, active_band, min_band, max_band,
+    p_oracle, base_price, oracle_fee,
+    bands_x, bands_y,
+};
 
-// 2. Build pool snapshot at a specific block
-let pool = build_pool(&provider, amm_addr, block, &immutables, borrowed_precision).await?;
-
-// 3. Quote a swap: 1000 crvUSD -> WETH
-let dy = pool.get_amount_out(0, 1, U256::from(1000) * WAD)?;
+let pool = build_pool(&state);
+let dy = pool.get_amount_out(0, 1, dx)?;
 ```
 
 ### With llamma-math only (bring your own state)
@@ -94,15 +95,16 @@ let dy = pool.get_amount_out(0, 1, U256::from(1000) * WAD)?;
 ```rust
 use llamma_math::pool::LlammaPool;
 
-let pool = LlammaPool {
+let pool = LlammaPool::new(
     a, a_minus_1, base_price, log_a_ratio,
-    // ... see LlammaPool fields
-};
+    max_oracle_dn_pow, sqrt_band_ratio,
+    borrowed_precision, collateral_precision,
+    fee, active_band, min_band, max_band,
+    bands_x, bands_y, p_oracle, oracle_fee,
+    static_antifee,
+);
 
-// Swap quote
 let dy = pool.get_amount_out(0, 1, dx)?;
-
-// Spot price
 let price = pool.spot_price()?;
 ```
 
@@ -119,10 +121,10 @@ llamma-math/
 │   │   │   └── pool.rs        LlammaPool struct + get_amount_out
 │   │   └── tests/
 │   │       └── wad_exp_crosscheck.rs  Independent exp verification
-│   └── llamma-adapter/        On-chain state reading
+│   └── llamma-adapter/        Pool construction + immutables
 │       ├── src/
 │       │   ├── immutables.rs  Extract constants from bytecode
-│       │   └── build.rs       Build LlammaPool via Multicall3
+│       │   └── build.rs       RawLlammaState -> LlammaPool (pure, no I/O)
 │       └── tests/
 │           ├── extract_onchain.rs    Immutables extraction test
 │           ├── fuzz_registry.rs      Registry-driven differential fuzz
