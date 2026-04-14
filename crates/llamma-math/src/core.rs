@@ -12,6 +12,36 @@ use alloy_primitives::{I256, U256};
 
 use crate::constants::WAD;
 
+// wad_exp constants — compile-time, no runtime unwrap().
+
+/// Scale factor for wad_exp finalization.
+/// = `3_822_833_074_963_236_453_042_738_258_902_158_003_155_416_615_667`
+/// = `0x29d9dc38563c32e5c2f6dc192ee70ef65f9978af3`
+const WAD_EXP_SCALE: U256 = U256::from_limbs([
+    0xee70ef65f9978af3,
+    0x63c32e5c2f6dc192,
+    0x000000029d9dc385,
+    0x0000000000000000,
+]);
+
+/// wad_exp lower bound: returns 0 for x <= this value.
+/// = `-41_446_531_673_892_822_313` (two's complement)
+const WAD_EXP_MIN: I256 = I256::from_raw(U256::from_limbs([
+    0xc0d0570925a462d7,
+    0xfffffffffffffffd,
+    0xffffffffffffffff,
+    0xffffffffffffffff,
+]));
+
+/// wad_exp upper bound: overflows for x >= this value.
+/// = `135_305_999_368_893_231_589`
+const WAD_EXP_MAX: I256 = I256::from_raw(U256::from_limbs([
+    0x55bf798b4a1bf1e5,
+    0x0000000000000007,
+    0x0000000000000000,
+    0x0000000000000000,
+]));
+
 // Integer square root
 
 /// Integer square root (floor). Babylonian method.
@@ -58,16 +88,10 @@ pub fn wad_exp(x: I256) -> Option<U256> {
     // All arithmetic uses WRAPPING operations to match Vyper's
     // unsafe_mul/unsafe_add/unsafe_sub which wrap modulo 2^256.
 
-    // Vyper V1: assert power > -41446531673892821376
-    // Use the V1 threshold to match deployed LLAMMA contracts.
-    if x <= I256::try_from(-41_446_531_673_892_822_313i128).unwrap() {
+    if x <= WAD_EXP_MIN {
         return Some(U256::ZERO);
     }
-
-    // Vyper: assert x < 135_305_999_368_893_231_589
-    if x >= I256::from_raw(U256::from_be_slice(
-        &135_305_999_368_893_231_589u128.to_be_bytes(),
-    )) {
+    if x >= WAD_EXP_MAX {
         return None; // overflow
     }
 
@@ -153,14 +177,13 @@ pub fn wad_exp(x: I256) -> Option<U256> {
     // then multiplied (wrapping) by the scale constant, then right-shifted.
     // 3_822_833_074_963_236_453_042_738_258_902_158_003_155_416_615_667
     // = 0x29d9dc38563c32e5c2f6dc192ee70ef65f9978af3
-    let scale = U256::from_str_radix("29d9dc38563c32e5c2f6dc192ee70ef65f9978af3", 16).unwrap();
-    let shift: I256 = I256::try_from(195).unwrap().wrapping_sub(k);
+    let shift: I256 = I256::from_raw(U256::from(195u64)).wrapping_sub(k);
     // Safe: input bounds (lines 63-72) guarantee x ∈ (-42e18, 135e18),
     // so k = round(x/ln2) ∈ (-61, 195), making shift ∈ (0, 256).
     let shift_u: usize = shift.as_i64() as usize;
 
     let r_uint: U256 = r.into_raw();
-    let (product, _) = r_uint.overflowing_mul(scale);
+    let (product, _) = r_uint.overflowing_mul(WAD_EXP_SCALE);
     let result_uint: U256 = product >> shift_u;
 
     // Convert back to signed (matching Vyper's final convert(..., int256))
@@ -346,6 +369,25 @@ pub fn get_p(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wad_exp_constants_are_correct() {
+        // Verify compile-time limb decomposition matches decimal values
+        assert_eq!(
+            WAD_EXP_SCALE,
+            U256::from_str_radix("29d9dc38563c32e5c2f6dc192ee70ef65f9978af3", 16).unwrap()
+        );
+        assert_eq!(
+            WAD_EXP_MIN,
+            I256::try_from(-41_446_531_673_892_822_313i128).unwrap()
+        );
+        assert_eq!(
+            WAD_EXP_MAX,
+            I256::from_raw(U256::from_be_slice(
+                &135_305_999_368_893_231_589u128.to_be_bytes()
+            ))
+        );
+    }
 
     #[test]
     fn sqrt_int_basic() {
