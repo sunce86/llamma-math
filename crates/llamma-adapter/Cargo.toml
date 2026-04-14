@@ -1,12 +1,12 @@
 [package]
 name = "llamma-adapter"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 rust-version = "1.80"
-description = "Adapts raw on-chain LLAMMA data into llamma-math pool instances. Market discovery, state reading, and pool construction."
+description = "Adapts raw on-chain LLAMMA data into llamma-math pool instances. Variant detection, pool construction."
 license = "MIT"
 repository = "https://github.com/sunce86/llamma-math"
-keywords = ["curve", "llamma", "crvusd", "llamalend", "indexer"]
+keywords = ["curve", "llamma", "crvusd", "llamalend", "amm"]
 categories = ["cryptography::cryptocurrencies"]
 
 [features]
@@ -16,9 +16,11 @@ serde = ["dep:serde", "alloy-primitives/serde"]
 
 [dependencies]
 alloy-primitives = "1"
-llamma-math = { path = "../llamma-math", version = "0.1.0-alpha.1", optional = true }
+llamma-math = { path = "../llamma-math", version = "0.1.0-alpha.2", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt", "macros"] }
-alloy = { version = "1.7", features = ["provider-http", "contract", "sol-types"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+alloy = { version = "1.7", features = ["provider-http", "contract", "sol-types", "eips"] }
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }

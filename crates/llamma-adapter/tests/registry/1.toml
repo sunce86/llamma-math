@@ -1,0 +1,487 @@
+# Verified LLAMMA pool registry — Chain ID: 1 (Ethereum)
+#
+# Each pool has been differentially fuzz-tested against on-chain get_dy.
+# AMM addresses are the LLAMMA AMM contracts, not vaults or controllers.
+
+last_updated = "2026-04-14"
+
+# ── crvUSD mint markets (Vyper 0.3.7, static antifee) ───────────────────────
+
+[[pools]]
+amm = "0x1681195C176239ac5E72d9aeBaCf5b2492E0C4ee"
+name = "WETH / crvUSD"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = true
+
+[[pools]]
+amm = "0x37417B2238AA52D0DD2d6252d989E728e8f706e4"
+name = "wstETH / crvUSD"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = true
+
+[[pools]]
+amm = "0xE0438Eb3703bF871E31Ce639BD351109c88666eA"
+name = "WBTC / crvUSD"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 10000000000
+static_antifee = true
+
+[[pools]]
+amm = "0x136e783846ef68C8Bd00a3369F787dF8d683a696"
+name = "sfrxETH / crvUSD"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = true
+
+[[pools]]
+amm = "0xf9bD9da2427a50908C4c6D1599D8e62837C2BCB0"
+name = "tBTC / crvUSD"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = true
+
+[[pools]]
+amm = "0xfA96ad0a9E64261dB86950e2dA362f5572c5c6fd"
+name = "sfrxETH v2 / crvUSD"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = true
+
+# ── Llamalend markets (Vyper 0.4.x, dynamic antifee) ────────────────────────
+
+[[pools]]
+amm = "0x847D7a5e4Aa4b380043B2908C29a92E2e5157E64"
+name = "wstETH / crvUSD (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xb46aDcd1eA7E35C4EB801406C3E76E76e9a46EdF"
+name = "WETH / crvUSD (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x5338B1bf469651a5951ef618Fb5DeFbffaed7BE9"
+name = "tBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xafca625321Df8D6A068bDD8F1585d489D2acF11b"
+name = "CRV / crvUSD (Llamalend)"
+a = 30
+log_a_ratio = 33901551675681339
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xe7B1c8cfC0Bc45957320895aA06884d516DAA8e6"
+name = "crvUSD / CRV (Llamalend)"
+a = 30
+log_a_ratio = 33901551675681339
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x08Ba6D7c10d1A7850aE938543bfbEA7C0240F9Cf"
+name = "crvUSD / WETH (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xfcb53ED72dAB68091aA6a2aB68b5116639ED8805"
+name = "crvUSD / tBTC (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x9bBdb1b160B48C48efCe260aaEa4505b1aDE8f4B"
+name = "sUSDe / crvUSD (Llamalend)"
+a = 130
+log_a_ratio = 7722046093910298
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x6BE658242b769500f27498Ba0637406E417507b1"
+name = "UwU / crvUSD (Llamalend)"
+a = 10
+log_a_ratio = 105360515657826298
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x8eeDE294459EFaFf55d580bc95C98306Ab03F0C8"
+name = "WBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 10000000000
+static_antifee = false
+
+[[pools]]
+amm = "0xcd28cF8f7755f03967D27E128B38022B63919836"
+name = "pufETH / crvUSD (Llamalend)"
+a = 33
+log_a_ratio = 30771658666753679
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x6505aeC799AC3b16a79cb1Ae2A61884889b54C1b"
+name = "sUSDe / crvUSD (Llamalend)"
+a = 200
+log_a_ratio = 5012541823544273
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x04b28CcF37828978140643525961D20099e63668"
+name = "WETH / crvUSD (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x83c71e53571D6D139D2F9c434e3244D99473319b"
+name = "wstETH / crvUSD (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xF832F4d9087e474357Afb9C9A277CB23B9A136cB"
+name = "USDe / crvUSD (Llamalend)"
+a = 500
+log_a_ratio = 2002002670673068
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xCD546DEaf54C3995DE3a5A6d17322799f7666c92"
+name = "sFRAX / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xD432F59cbb90eAEc3a1e6c4a214D6c6Df3d334d8"
+name = "ezETH / crvUSD (Llamalend)"
+a = 33
+log_a_ratio = 30771658666753679
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xA882374fc57be61070d7f1c851f708eE204836c5"
+name = "sDOLA / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xD19e96C90F717a4a9463C015E7530F33e75Ff25b"
+name = "ETHFI / crvUSD (Llamalend)"
+a = 23
+log_a_ratio = 44451762570833829
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x5E2cDCd38a4927ca63F14aE1dA7154a89228c8A4"
+name = "USD0USD0++ / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x12B1EaA2469a34548fd5e360d5428B01DBB91cf8"
+name = "USD0USD0++ / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x9dbCAEA6c46703a631Cc7F96527EF114C0494C63"
+name = "swBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 10000000000
+static_antifee = false
+
+[[pools]]
+amm = "0x16117999D974629ec46973B3745A42A6C6859fc0"
+name = "ynETH / crvUSD (Llamalend)"
+a = 37
+log_a_ratio = 27398974188114433
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x1785e3AEc59fC7FfDc665C1dB1F0D16A43Ca9de2"
+name = "ynETH / crvUSD (Llamalend)"
+a = 37
+log_a_ratio = 27398974188114433
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x25da33e47Ecf2e241DdA49a9d4B4f4e3Af964e3d"
+name = "crvUSD / ynETH (Llamalend)"
+a = 37
+log_a_ratio = 27398974188114433
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x62c265b8c07696057bA4C25E5A172891e58B9340"
+name = "LBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 10000000000
+static_antifee = false
+
+[[pools]]
+amm = "0x062811f90cDa4830FBDe96051D22013242a91F48"
+name = "RCH / crvUSD (Llamalend)"
+a = 33
+log_a_ratio = 30771658666753679
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x527e37764C33E66e7955f0813F201212cd4775A1"
+name = "XAUM / crvUSD (Llamalend)"
+a = 100
+log_a_ratio = 10050335853501431
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x90D1d11254fA67E499d2791460B2139B76aB2Bf5"
+name = "sfrxUSD / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x53Fa1aCf93B3d7655516906AACE7d128F09275b4"
+name = "ynETHx / crvUSD (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x0079885E248B572CdC4559A8B156745e2d8EA1f7"
+name = "sDOLA / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x82008dd2Ab6fc26379AecE70A281cf84EFf5751e"
+name = "tBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x670829e34ad135B2998bEC9a7b39597d10DdBC85"
+name = "sUSDS / crvUSD (Llamalend)"
+a = 300
+log_a_ratio = 3338901265514624
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x71eC81444A6b68378DBF1607e0804b5c64Bf2C2f"
+name = "sUSDf / crvUSD (Llamalend)"
+a = 200
+log_a_ratio = 5012541823544273
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x590BdC6663A5C4ED04DB86A278707560D1924582"
+name = "wstUSR / crvUSD (Llamalend)"
+a = 300
+log_a_ratio = 3338901265514624
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xF1b03586c03EBfEC014238D105148A15102A282f"
+name = "ycvxCRV / crvUSD (Llamalend)"
+a = 25
+log_a_ratio = 40821994520255123
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xFfa2167e69AA082f858fdc3Ddcabd6516495e7b0"
+name = "yvUSDC-1 / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1000000000000
+static_antifee = false
+
+[[pools]]
+amm = "0x6452A0f06f57F4CA8f023854B3314675dB0f1e4f"
+name = "yvUSDS-1 / crvUSD (Llamalend)"
+a = 285
+log_a_ratio = 3514942107444477
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x10A931B5623B0c1E40Cfb5877ec64529f6b73541"
+name = "yvWETH-2 / crvUSD (Llamalend)"
+a = 70
+log_a_ratio = 14388737452099598
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x9D529D110C1339e9216C8781d56006440930F99b"
+name = "fxSAVE / crvUSD (Llamalend)"
+a = 200
+log_a_ratio = 5012541823544273
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xE629D73bAedC886C80468cb8f07730Fb485DEfF6"
+name = "sdeUSD / crvUSD (Llamalend)"
+a = 200
+log_a_ratio = 5012541823544273
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x437722a015eEFB96A6A2a882F3b27cAf3C2BC41C"
+name = "sreUSD / crvUSD (Llamalend)"
+a = 200
+log_a_ratio = 5012541823544273
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x418c220639F6d93b8723F171272cB5E39cAafA58"
+name = "zkBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 10000000000
+static_antifee = false
+
+[[pools]]
+amm = "0x3e24794DB67b1BDCBDd2a33946C32F19E4f5aAbd"
+name = "zkBTC / crvUSD (Llamalend)"
+a = 75
+log_a_ratio = 13423020332140676
+borrowed_precision = 1
+collateral_precision = 10000000000
+static_antifee = false
+
+[[pools]]
+amm = "0xe29927De64e0e8B923eC33CA9f13537377822855"
+name = "UNIT0 / crvUSD (Llamalend)"
+a = 23
+log_a_ratio = 44451762570833829
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0xEC60d54e3D259238Ee173D51E7d880c10970010D"
+name = "PROS / crvUSD (Llamalend)"
+a = 15
+log_a_ratio = 68992871486951444
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false
+
+[[pools]]
+amm = "0x27E79A02b237078E9F54f7113471ed23ECb293b7"
+name = "yvCurve-yYB-f / crvUSD (Llamalend)"
+a = 18
+log_a_ratio = 57158413839948604
+borrowed_precision = 1
+collateral_precision = 1
+static_antifee = false

@@ -1,6 +1,6 @@
 [package]
 name = "llamma-math"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 edition = "2021"
 rust-version = "1.80"
 description = "Pure Rust port of Curve Finance LLAMMA (Lending-Liquidating AMM Algorithm) math. Wei-level precision, fuzz-verified against on-chain contracts."
@@ -16,7 +16,6 @@ serde = { version = "1", features = ["derive"], optional = true }
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 alloy = { version = "1.7", features = ["provider-http", "contract", "sol-types"] }
-ethers = "2.0.14"
 
 [features]
 default = []

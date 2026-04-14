@@ -57,7 +57,10 @@ mod tests {
 
     #[test]
     fn max_p_o_chg_is_12500e14() {
-        assert_eq!(MAX_P_O_CHG, U256::from(12500u64) * U256::from(10u64).pow(U256::from(14)));
+        assert_eq!(
+            MAX_P_O_CHG,
+            U256::from(12500u64) * U256::from(10u64).pow(U256::from(14))
+        );
     }
 
     #[test]

@@ -12,27 +12,7 @@ use alloy_primitives::{I256, U256};
 
 use crate::constants::WAD;
 
-// Helper: wrapping arithmetic that always returns I256.
-// Needed because Vyper `unsafe_*` operations wrap modulo 2^256.
-fn wmul(a: I256, b: I256) -> I256 {
-    a.wrapping_mul(b)
-}
-fn wadd(a: I256, b: I256) -> I256 {
-    a.wrapping_add(b)
-}
-fn wsub(a: I256, b: I256) -> I256 {
-    a.wrapping_sub(b)
-}
-fn wdiv(a: I256, b: I256) -> I256 {
-    a.wrapping_div(b)
-}
-fn shr96(a: I256) -> I256 {
-    a >> 96
-}
-
-// ──────────────────────────────────────────────────────────
 // Integer square root
-// ──────────────────────────────────────────────────────────
 
 /// Integer square root (floor). Babylonian method.
 ///
@@ -56,9 +36,7 @@ pub fn sqrt_int(x: U256) -> U256 {
     y
 }
 
-// ──────────────────────────────────────────────────────────
 // snekmate wad_exp  (Remco Bloemen's exp approximation)
-// ──────────────────────────────────────────────────────────
 
 /// Natural exponential `e^x` with 1e18 precision.
 ///
@@ -70,17 +48,18 @@ pub fn sqrt_int(x: U256) -> U256 {
 ///
 /// Range: for `x <= -41.446e18` returns 0.  For `x >= 135.305e18` overflows.
 pub fn wad_exp(x: I256) -> Option<U256> {
-    // Port of snekmate `_wad_exp` (Remco Bloemen's exp approximation).
-    // Source: https://github.com/pcaversaccio/snekmate/blob/main/src/snekmate/utils/math.vy
+    // Port of the Remco Bloemen exp approximation as used in Curve's AMM.vy (V1).
     // Algorithm: https://xn--2-umb.com/22/exp-ln
+    //
+    // Uses SDIV (wrapping_div) for all intermediate /2^96 divisions,
+    // matching the on-chain Vyper `unsafe_div(x, 2**96)` which compiles to SDIV.
+    // This differs from snekmate's `>> 96` (SAR) for negative intermediates.
     //
     // All arithmetic uses WRAPPING operations to match Vyper's
     // unsafe_mul/unsafe_add/unsafe_sub which wrap modulo 2^256.
 
-    // Vyper: if x <= -41_446_531_673_892_822_313: return empty(int256)
-    //
-    // snekmate threshold: returns 0 when e^x < ~1e-18.
-    // We use this exact threshold to match the LLAMMA on-chain behavior.
+    // Vyper V1: assert power > -41446531673892821376
+    // Use the V1 threshold to match deployed LLAMMA contracts.
     if x <= I256::try_from(-41_446_531_673_892_822_313i128).unwrap() {
         return Some(U256::ZERO);
     }
@@ -95,28 +74,33 @@ pub fn wad_exp(x: I256) -> Option<U256> {
     // Helper: construct I256 from u128 (for large positive constants)
     let c = |v: u128| -> I256 { I256::from_raw(U256::from(v)) };
 
-    // Vyper: x = unsafe_div(x << 78, 5 ** 18)
-    // 5**18 = 3_814_697_265_625
-    let five_pow_18 = c(3_814_697_265_625);
-    let mut x: I256 = x.wrapping_shl(78) / five_pow_18;
+    // 2^96 as I256 — used for SDIV divisions throughout
+    let two_96: I256 = c(1u128 << 96);
+
+    // Vyper V1: x = unsafe_div(unsafe_mul(power, 2**96), 10**18)
+    // Equivalent to: x = (power * 2^96) / 10^18 via SDIV
+    // Also equivalent to: x = (power << 78) / 5^18 (same numerical result)
+    let wad: I256 = c(1_000_000_000_000_000_000);
+    let mut x: I256 = x.wrapping_mul(two_96).wrapping_div(wad);
 
     // k = round(x / log(2))
-    // Vyper: k = unsafe_add(unsafe_div(x << 96, 54916777467707473351141471128), 2**95) >> 96
+    // Vyper V1: k = unsafe_div(unsafe_add(unsafe_div(unsafe_mul(x, 2**96), ln2), 2**95), 2**96)
     let ln2_96 = c(54_916_777_467_707_473_351_141_471_128);
     let k: I256 = x
-        .wrapping_shl(96)
+        .wrapping_mul(two_96)
         .wrapping_div(ln2_96)
         .wrapping_add(I256::from_raw(U256::from(2u64).pow(U256::from(95))))
-        .asr(96);
+        .wrapping_div(two_96);
 
     // x' = x - k * log(2)
     x = x.wrapping_sub(k.wrapping_mul(ln2_96));
 
     // Evaluate (6, 7)-term rational approximation for p.
+    // All intermediate divisions by 2^96 use SDIV (wrapping_div).
     let mut y: I256 = x.wrapping_add(c(1_346_386_616_545_796_478_920_950_773_328));
     y = y
         .wrapping_mul(x)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_add(c(57_155_421_227_552_351_082_224_309_758_442));
 
     let mut p: I256 = y
@@ -124,33 +108,33 @@ pub fn wad_exp(x: I256) -> Option<U256> {
         .wrapping_sub(c(94_201_549_194_550_492_254_356_042_504_812));
     p = p
         .wrapping_mul(y)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_add(c(28_719_021_644_029_726_153_956_944_680_412_240));
-    p = p.wrapping_mul(x).wrapping_add(
-        c(4_385_272_521_454_847_904_659_076_985_693_276).wrapping_shl(96),
-    );
+    p = p
+        .wrapping_mul(x)
+        .wrapping_add(c(4_385_272_521_454_847_904_659_076_985_693_276).wrapping_shl(96));
 
     // Evaluate q polynomial.
     let mut q: I256 = x.wrapping_sub(c(2_855_989_394_907_223_263_936_484_059_900));
     q = q
         .wrapping_mul(x)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_add(c(50_020_603_652_535_783_019_961_831_881_945));
     q = q
         .wrapping_mul(x)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_sub(c(533_845_033_583_426_703_283_633_433_725_380));
     q = q
         .wrapping_mul(x)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_add(c(3_604_857_256_930_695_427_073_651_918_091_429));
     q = q
         .wrapping_mul(x)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_sub(c(14_423_608_567_350_463_180_887_372_962_807_573));
     q = q
         .wrapping_mul(x)
-        .asr(96)
+        .wrapping_div(two_96)
         .wrapping_add(c(26_449_188_498_355_588_339_934_803_723_976_023));
 
     // r = p / q (in 2^192 base)
@@ -169,10 +153,7 @@ pub fn wad_exp(x: I256) -> Option<U256> {
     // then multiplied (wrapping) by the scale constant, then right-shifted.
     // 3_822_833_074_963_236_453_042_738_258_902_158_003_155_416_615_667
     // = 0x29d9dc38563c32e5c2f6dc192ee70ef65f9978af3
-    let scale = U256::from_str_radix(
-        "29d9dc38563c32e5c2f6dc192ee70ef65f9978af3",
-        16,
-    ).unwrap();
+    let scale = U256::from_str_radix("29d9dc38563c32e5c2f6dc192ee70ef65f9978af3", 16).unwrap();
     let shift: I256 = I256::try_from(195).unwrap().wrapping_sub(k);
     let shift_u: usize = shift.as_i64() as usize;
 
@@ -187,9 +168,7 @@ pub fn wad_exp(x: I256) -> Option<U256> {
     Some(result.into_raw())
 }
 
-// ──────────────────────────────────────────────────────────
 // Band pricing
-// ──────────────────────────────────────────────────────────
 
 /// Upper oracle price for band `n`.
 ///
@@ -230,9 +209,7 @@ pub fn p_oracle_down(n: i64, base_price: U256, log_a_ratio: I256) -> Option<U256
     p_oracle_up(n + 1, base_price, log_a_ratio)
 }
 
-// ──────────────────────────────────────────────────────────
 // Dynamic fee
-// ──────────────────────────────────────────────────────────
 
 /// Dynamic fee based on oracle/AMM price divergence.
 ///
@@ -271,9 +248,7 @@ pub fn get_dynamic_fee(p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256) -> U25
     }
 }
 
-// ──────────────────────────────────────────────────────────
 // Core invariant: _get_y0
-// ──────────────────────────────────────────────────────────
 
 /// Calculate `y0` — the amount of collateral when band has no borrowed tokens
 /// but current price equals both oracle price and upper band price.
@@ -307,8 +282,10 @@ pub fn get_y0(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U25
     }
 
     // Vyper: if y != 0: b += unsafe_div(A * p_o**2 // p_o_up * y, 10**18)
+    // Vyper operator precedence (left to right for * and //):
+    //   ((A * (p_o ** 2)) // p_o_up) * y / 10**18
     if !y.is_zero() {
-        b += a * (p_o * p_o / p_o_up) * y / WAD;
+        b += a * p_o * p_o / p_o_up * y / WAD;
     }
 
     if !x.is_zero() && !y.is_zero() {
@@ -323,9 +300,7 @@ pub fn get_y0(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U25
     }
 }
 
-// ──────────────────────────────────────────────────────────
 // Spot price in band
-// ──────────────────────────────────────────────────────────
 
 /// Current AMM price in a specific band.
 ///
@@ -338,14 +313,7 @@ pub fn get_y0(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U25
 /// ```
 ///
 /// Caller provides `p_o` and `p_o_up` since those depend on external state.
-pub fn get_p(
-    x: U256,
-    y: U256,
-    p_o: U256,
-    p_o_up: U256,
-    a: U256,
-    a_minus_1: U256,
-) -> Option<U256> {
+pub fn get_p(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256) -> Option<U256> {
     if p_o_up.is_zero() {
         return None;
     }
@@ -416,7 +384,10 @@ mod tests {
         // e ≈ 2.71828... so result should be ~2_718_281_828_459_045_235
         let expected_low = U256::from(2_718_281_828_000_000_000u128);
         let expected_high = U256::from(2_718_281_829_000_000_000u128);
-        assert!(result >= expected_low && result <= expected_high, "e^1 = {result}");
+        assert!(
+            result >= expected_low && result <= expected_high,
+            "e^1 = {result}"
+        );
     }
 
     #[test]
@@ -538,7 +509,10 @@ mod tests {
         let x = I256::try_from(-41_000_000_000_000_000_000i128).unwrap();
         let result = wad_exp(x).unwrap();
         assert!(result > U256::ZERO, "e^(-41e18) should be > 0: {result}");
-        assert!(result < U256::from(1000u64), "e^(-41e18) should be tiny: {result}");
+        assert!(
+            result < U256::from(1000u64),
+            "e^(-41e18) should be tiny: {result}"
+        );
     }
 
     #[test]
@@ -681,7 +655,15 @@ mod tests {
         let p_o_up = WAD * U256::from(3010u64);
 
         // y=0, x>0 → highest point of band (p_current_up)
-        let price = get_p(WAD * U256::from(1000u64), U256::ZERO, p_o, p_o_up, a, a_minus_1).unwrap();
+        let price = get_p(
+            WAD * U256::from(1000u64),
+            U256::ZERO,
+            p_o,
+            p_o_up,
+            a,
+            a_minus_1,
+        )
+        .unwrap();
         assert!(price > U256::ZERO);
     }
 }
