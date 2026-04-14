@@ -308,8 +308,8 @@ mod tests {
             log_a_ratio,
             pow,
             sqrt_band_ratio,
-            U256::from(1u64), // 18 decimals
-            U256::from(1u64), // 18 decimals
+            U256::from(1u64),          // 18 decimals
+            U256::from(1u64),          // 18 decimals
             WAD / U256::from(1000u64), // 0.1%
             0,
             -10,
@@ -440,5 +440,4 @@ mod tests {
             "larger input should give more output: {small_dy} vs {large_dy}"
         );
     }
-
 }
