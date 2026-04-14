@@ -227,13 +227,12 @@ pub fn p_oracle_down(n: i64, base_price: U256, log_a_ratio: I256) -> Option<U256
 ///     else:
 ///         return 0
 /// ```
+/// Preconditions: `p_o_up > 0`, `a_minus_1 > 0`, `p_o > 0` (guaranteed by on-chain AMM invariants).
 pub fn get_dynamic_fee(p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256) -> U256 {
-    // p_c_d = p_o^2 / p_o_up * p_o / p_o_up
-    //       = p_o^3 / p_o_up^2
+    // p_c_d = p_o^2 / p_o_up * p_o / p_o_up  (p_o_up > 0: band price from exp, always positive)
     let p_c_d = (p_o * p_o / p_o_up) * p_o / p_o_up;
 
-    // p_c_u = p_c_d * A / (A-1) * A / (A-1)
-    //       = p_c_d * A^2 / (A-1)^2
+    // p_c_u = p_c_d * A / (A-1) * A / (A-1)  (a_minus_1 > 0: A ≥ 2 on-chain)
     let p_c_u = (p_c_d * a / a_minus_1) * a / a_minus_1;
 
     // WAD / 4 = 0.25e18
@@ -270,34 +269,31 @@ pub fn get_dynamic_fee(p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256) -> U25
 ///     else:
 ///         return unsafe_div(b * 10**18, unsafe_mul(A, p_o))
 /// ```
+/// Preconditions: `p_o > 0` (checked), `p_o_up > 0` (band price from exp),
+/// `a > 0` (amplification ≥ 2 on-chain), `a_minus_1 > 0`.
 pub fn get_y0(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256) -> Option<U256> {
     if p_o.is_zero() {
         return None;
     }
 
-    // b = 0
     let mut b = U256::ZERO;
 
-    // Vyper: if x != 0: b = unsafe_div(p_o_up * Aminus1 * x, p_o)
     if !x.is_zero() {
+        // p_o checked nonzero above
         b = p_o_up * a_minus_1 * x / p_o;
     }
 
-    // Vyper: if y != 0: b += unsafe_div(A * p_o**2 // p_o_up * y, 10**18)
-    // Vyper operator precedence (left to right for * and //):
-    //   ((A * (p_o ** 2)) // p_o_up) * y / 10**18
     if !y.is_zero() {
+        // p_o_up > 0: derived from wad_exp which returns > 1000 (see p_oracle_up)
         b += a * p_o * p_o / p_o_up * y / WAD;
     }
 
     if !x.is_zero() && !y.is_zero() {
-        // Vyper: D = b**2 + unsafe_div((unsafe_mul(4, A) * p_o) * y, 10**18) * x
         let d = b * b + (U256::from(4u64) * a * p_o) * y / WAD * x;
-
-        // Vyper: return unsafe_div((b + self.sqrt_int(D)) * 10**18, unsafe_mul(unsafe_mul(2, A), p_o))
+        // a * p_o > 0: both guaranteed positive by preconditions
         Some((b + sqrt_int(d)) * WAD / (U256::from(2u64) * a * p_o))
     } else {
-        // Vyper: return unsafe_div(b * 10**18, unsafe_mul(A, p_o))
+        // a * p_o > 0: same
         Some(b * WAD / (a * p_o))
     }
 }
@@ -315,39 +311,35 @@ pub fn get_y0(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U25
 /// ```
 ///
 /// Caller provides `p_o` and `p_o_up` since those depend on external state.
+/// Preconditions: `p_o_up > 0` (checked), `a_minus_1 > 0`, `a > 0`, `p_o > 0`
+/// (guaranteed by on-chain AMM invariants — A ≥ 2, prices from wad_exp > 1000).
 pub fn get_p(x: U256, y: U256, p_o: U256, p_o_up: U256, a: U256, a_minus_1: U256) -> Option<U256> {
     if p_o_up.is_zero() {
         return None;
     }
 
-    // Vyper: special cases
     if x.is_zero() {
         if y.is_zero() {
-            // Vyper: return unsafe_div((unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up) * A), Aminus1)
+            // p_o_up checked above, a_minus_1 > 0 by precondition
             return Some(((p_o * p_o / p_o_up) * p_o / p_o_up) * a / a_minus_1);
         }
-        // Vyper: return unsafe_div(unsafe_div(p_o**2, p_o_up) * p_o, p_o_up)
         return Some((p_o * p_o / p_o_up) * p_o / p_o_up);
     }
 
     if y.is_zero() {
-        // Vyper: p_o_up = unsafe_div(p_o_up * Aminus1, A)  # now this is _actually_ p_o_down
+        // a > 0 by precondition
         let p_o_down = p_o_up * a_minus_1 / a;
-        // Vyper: return unsafe_div(p_o**2 // p_o_up * p_o, p_o_up)
-        //   (but with p_o_down substituted for p_o_up)
+        // p_o_down > 0: p_o_up > 0, a_minus_1/a ∈ (0.5, 1) for A ≥ 2
         return Some(p_o * p_o / p_o_down * p_o / p_o_down);
     }
 
-    // General case: both x and y are nonzero
     let y0 = get_y0(x, y, p_o, p_o_up, a, a_minus_1)?;
 
-    // Vyper: f = unsafe_div(A * y0 * p_o, p_o_up) * p_o
     let f = a * y0 * p_o / p_o_up * p_o;
-
-    // Vyper: g = unsafe_div(Aminus1 * y0 * p_o_up, p_o)
+    // p_o > 0 by precondition
     let g = a_minus_1 * y0 * p_o_up / p_o;
 
-    // Vyper: return (f + x * 10**18) // (g + y)
+    // g + y > 0: y > 0 (checked above)
     Some((f + x * WAD) / (g + y))
 }
 

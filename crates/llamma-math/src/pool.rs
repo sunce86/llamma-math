@@ -256,7 +256,7 @@ impl LlammaPool {
         };
 
         // AMM.vy L954: out = self.calc_swap_out(i == 0, amount * in_precision, p_o, ...)
-        let result = swap::calc_swap_out(pump, scaled_in, &state).ok_or(PoolError::MathError)?;
+        let result = swap::calc_swap_out(pump, scaled_in, &state)?;
 
         // AMM.vy L958: out.out_amount = unsafe_div(out.out_amount, out_precision)
         Ok(result.out_amount / out_precision)
@@ -454,5 +454,208 @@ mod tests {
             large_dy > small_dy,
             "larger input should give more output: {small_dy} vs {large_dy}"
         );
+    }
+
+    #[test]
+    fn new_rejects_invalid_params() {
+        assert_eq!(
+            LlammaPool::new(
+                U256::from(1u64), // A=1 invalid
+                U256::ZERO,
+                WAD,
+                I256::ZERO,
+                WAD,
+                U256::ZERO,
+                U256::from(1u64),
+                U256::from(1u64),
+                U256::ZERO,
+                0,
+                -10,
+                10,
+                HashMap::new(),
+                HashMap::new(),
+                WAD,
+                U256::ZERO,
+                false,
+            )
+            .unwrap_err(),
+            PoolError::InvalidParams
+        );
+        assert_eq!(
+            LlammaPool::new(
+                U256::from(100u64),
+                U256::from(99u64),
+                WAD,
+                I256::ZERO,
+                WAD,
+                U256::ZERO,
+                U256::ZERO, // zero borrowed_precision
+                U256::from(1u64),
+                U256::ZERO,
+                0,
+                -10,
+                10,
+                HashMap::new(),
+                HashMap::new(),
+                WAD,
+                U256::ZERO,
+                false,
+            )
+            .unwrap_err(),
+            PoolError::InvalidParams
+        );
+    }
+
+    #[test]
+    fn get_amount_out_amount_smaller_than_precision() {
+        let mut bx = HashMap::new();
+        let mut by = HashMap::new();
+        bx.insert(0i64, WAD * U256::from(1000u64));
+        by.insert(0i64, WAD * U256::from(5u64));
+
+        // WBTC-like: 8 decimals → precision = 10^10
+        let borrowed_prec = U256::from(1u64); // 18 decimals
+        let collateral_prec = U256::from(10_000_000_000u64); // 8 decimals
+        let a_val = U256::from(100u64);
+        let a_minus_1 = U256::from(99u64);
+        let log_a_ratio = I256::try_from(10_050_335_853_501i128).unwrap();
+        let mut pow = WAD;
+        for _ in 0..50 {
+            pow = pow * a_val / a_minus_1;
+        }
+        let base_price = WAD * U256::from(2000u64);
+
+        let pool = LlammaPool::new(
+            a_val,
+            a_minus_1,
+            base_price,
+            log_a_ratio,
+            pow,
+            U256::ZERO,
+            borrowed_prec,
+            collateral_prec,
+            WAD / U256::from(100u64), // 1% fee
+            0,
+            -10,
+            10,
+            bx,
+            by,
+            base_price,
+            U256::ZERO,
+            false,
+        )
+        .unwrap();
+
+        // 1 wei of crvUSD — should not panic, output rounds to 0
+        let dy = pool.get_amount_out(0, 1, U256::from(1u64)).unwrap();
+        assert_eq!(
+            dy,
+            U256::ZERO,
+            "sub-precision input should round to zero output"
+        );
+    }
+
+    #[test]
+    fn get_amount_out_minimum_a() {
+        // A=2 is minimum valid amplification
+        let mut by = HashMap::new();
+        by.insert(0i64, WAD * U256::from(10u64));
+
+        let pool = test_pool(
+            2,
+            WAD * U256::from(2000u64),
+            HashMap::new(),
+            by,
+            WAD * U256::from(2000u64),
+        );
+
+        // Should not panic with A=2
+        let dy = pool.get_amount_out(1, 0, WAD).unwrap();
+        assert!(dy >= U256::ZERO);
+    }
+
+    #[test]
+    fn get_amount_out_high_a() {
+        // A=500 is highest in registry
+        let mut bx = HashMap::new();
+        let mut by = HashMap::new();
+        bx.insert(0i64, WAD * U256::from(1000u64));
+        by.insert(0i64, WAD * U256::from(5u64));
+
+        let a: u64 = 500;
+        let a_val = U256::from(a);
+        let a_minus_1 = U256::from(a - 1);
+        let log_a_ratio = I256::try_from(2_002_002_670_673_068i128).unwrap();
+        let mut pow = WAD;
+        for _ in 0..50 {
+            pow = pow * a_val / a_minus_1;
+        }
+        let base_price = WAD * U256::from(2000u64);
+
+        let pool = LlammaPool::new(
+            a_val,
+            a_minus_1,
+            base_price,
+            log_a_ratio,
+            pow,
+            U256::ZERO,
+            U256::from(1u64),
+            U256::from(1u64),
+            WAD / U256::from(1000u64),
+            0,
+            -10,
+            10,
+            bx,
+            by,
+            base_price,
+            U256::ZERO,
+            false,
+        )
+        .unwrap();
+
+        let dy = pool.get_amount_out(0, 1, WAD * U256::from(100u64)).unwrap();
+        assert!(dy > U256::ZERO, "A=500 should produce output");
+    }
+
+    #[test]
+    fn get_amount_out_zero_fee() {
+        let mut bx = HashMap::new();
+        let mut by = HashMap::new();
+        bx.insert(0i64, WAD * U256::from(1000u64));
+        by.insert(0i64, WAD * U256::from(5u64));
+
+        let a_val = U256::from(100u64);
+        let a_minus_1 = U256::from(99u64);
+        let log_a_ratio = I256::try_from(10_050_335_853_501i128).unwrap();
+        let mut pow = WAD;
+        for _ in 0..50 {
+            pow = pow * a_val / a_minus_1;
+        }
+        let base_price = WAD * U256::from(2000u64);
+
+        let pool = LlammaPool::new(
+            a_val,
+            a_minus_1,
+            base_price,
+            log_a_ratio,
+            pow,
+            U256::ZERO,
+            U256::from(1u64),
+            U256::from(1u64),
+            U256::ZERO, // zero fee
+            0,
+            -10,
+            10,
+            bx,
+            by,
+            base_price,
+            U256::ZERO,
+            false,
+        )
+        .unwrap();
+
+        // Should not panic with zero fee (antifee = WAD * WAD / WAD = WAD)
+        let dy = pool.get_amount_out(0, 1, WAD * U256::from(10u64)).unwrap();
+        assert!(dy > U256::ZERO, "zero fee should still produce output");
     }
 }

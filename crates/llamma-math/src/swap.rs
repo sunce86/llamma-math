@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use crate::constants::{MAX_SKIP_TICKS_UINT, MAX_TICKS_UINT, WAD};
 use crate::core::{get_dynamic_fee, get_y0};
+use crate::pool::PoolError;
 
 /// Result of a swap calculation, mirroring `IAMM.DetailedTrade` from Vyper.
 ///
@@ -89,8 +90,12 @@ pub struct SwapState<'a> {
 ///
 /// # Returns
 ///
-/// A `DetailedTrade` describing the swap result, or `None` on math error.
-pub fn calc_swap_out(pump: bool, in_amount: U256, state: &SwapState) -> Option<DetailedTrade> {
+/// A `DetailedTrade` describing the swap result, or `PoolError::MathError`.
+pub fn calc_swap_out(
+    pump: bool,
+    in_amount: U256,
+    state: &SwapState,
+) -> Result<DetailedTrade, PoolError> {
     // AMM.vy L802-808
     let min_band = state.min_band;
     let max_band = state.max_band;
@@ -145,7 +150,7 @@ pub fn calc_swap_out(pump: bool, in_amount: U256, state: &SwapState) -> Option<D
                 out.n1 = out.n2;
                 j = 0;
             }
-            y0 = get_y0(x, y, p_o, p_o_up, a, a_minus_1)?;
+            y0 = get_y0(x, y, p_o, p_o_up, a, a_minus_1).ok_or(PoolError::MathError)?;
             f = a * y0 * p_o / p_o_up * p_o / WAD;
             g = a_minus_1 * y0 * p_o_up / p_o;
             inv = (f + x) * (g + y);
@@ -303,7 +308,7 @@ pub fn calc_swap_out(pump: bool, in_amount: U256, state: &SwapState) -> Option<D
     // out.out_amount = floor(out.out_amount / out_precision) * out_precision
     out.out_amount = out.out_amount / out_prec * out_prec;
 
-    Some(out)
+    Ok(out)
 }
 
 #[cfg(test)]
