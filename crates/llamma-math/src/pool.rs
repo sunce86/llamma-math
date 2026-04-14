@@ -24,9 +24,12 @@ use crate::swap::{self, SwapState};
 
 /// Error returned by LlammaPool methods.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum PoolError {
     /// Invalid token index (must be 0 or 1).
     InvalidIndex,
+    /// Invalid pool parameters (e.g. A ≤ 1, zero precision).
+    InvalidParams,
     /// Math error during computation.
     MathError,
 }
@@ -35,6 +38,7 @@ impl std::fmt::Display for PoolError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidIndex => f.write_str("invalid token index: must be 0 or 1"),
+            Self::InvalidParams => f.write_str("invalid pool parameters"),
             Self::MathError => f.write_str("math error during computation"),
         }
     }
@@ -50,6 +54,7 @@ impl std::error::Error for PoolError {}
 /// Construct via [`llamma_adapter::build_pool`] or [`LlammaPool::new`].
 #[derive(Debug, Clone)]
 #[non_exhaustive]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LlammaPool {
     /// Amplification parameter.
     ///
@@ -140,6 +145,8 @@ pub struct LlammaPool {
 
 impl LlammaPool {
     /// Create a new `LlammaPool` from all required parameters.
+    ///
+    /// Returns `Err(PoolError::InvalidParams)` if `a <= 1` or precision values are zero.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         a: U256,
@@ -159,8 +166,15 @@ impl LlammaPool {
         p_oracle: U256,
         oracle_fee: U256,
         static_antifee: bool,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, PoolError> {
+        if a <= U256::from(1u64)
+            || a_minus_1.is_zero()
+            || borrowed_precision.is_zero()
+            || collateral_precision.is_zero()
+        {
+            return Err(PoolError::InvalidParams);
+        }
+        Ok(Self {
             a,
             a_minus_1,
             base_price,
@@ -178,7 +192,7 @@ impl LlammaPool {
             p_oracle,
             oracle_fee,
             static_antifee,
-        }
+        })
     }
 
     /// Compute amount of token `j` received for swapping `dx` of token `i`.
@@ -320,6 +334,7 @@ mod tests {
             U256::ZERO,
             false,
         )
+        .expect("test pool params are valid")
     }
 
     #[test]

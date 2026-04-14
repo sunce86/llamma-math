@@ -310,49 +310,35 @@ pub fn calc_swap_out(pump: bool, in_amount: U256, state: &SwapState) -> Option<D
 mod tests {
     use super::*;
 
-    fn make_state(
-        a: u64,
-        fee_bps: u64,
-        active_band: i64,
-        bands_x: HashMap<i64, U256>,
-        bands_y: HashMap<i64, U256>,
+    fn make_state<'a>(
+        bands_x: &'a HashMap<i64, U256>,
+        bands_y: &'a HashMap<i64, U256>,
         p_oracle: U256,
         p_oracle_up_active: U256,
-    ) -> (SwapState<'static>, HashMap<i64, U256>, HashMap<i64, U256>) {
-        // Leak the HashMaps so we can return references with 'static lifetime
-        // This is only for tests
-        let bx = Box::leak(Box::new(bands_x));
-        let by = Box::leak(Box::new(bands_y));
-        let a_val = U256::from(a);
-        let a_minus_1 = U256::from(a - 1);
-        // max_oracle_dn_pow = (A / (A-1))^50
-        // For A=100: (100/99)^50 ≈ 1.6466...
-        // For simplicity in tests, compute it
+    ) -> SwapState<'a> {
+        let a = U256::from(100u64);
+        let a_minus_1 = U256::from(99u64);
         let mut pow = WAD;
         for _ in 0..50 {
-            pow = pow * a_val / a_minus_1;
+            pow = pow * a / a_minus_1;
         }
-        (
-            SwapState {
-                a: a_val,
-                a_minus_1,
-                fee: U256::from(fee_bps) * WAD / U256::from(10000u64),
-                bands_x: bx,
-                bands_y: by,
-                active_band,
-                min_band: -10,
-                max_band: 10,
-                p_oracle,
-                oracle_fee: U256::ZERO,
-                p_oracle_up_active,
-                max_oracle_dn_pow: pow,
-                in_precision: U256::from(1u64),
-                out_precision: U256::from(1u64),
-                static_antifee: false,
-            },
-            HashMap::new(), // placeholder
-            HashMap::new(),
-        )
+        SwapState {
+            a,
+            a_minus_1,
+            fee: U256::from(10u64) * WAD / U256::from(10000u64),
+            bands_x,
+            bands_y,
+            active_band: 0,
+            min_band: -10,
+            max_band: 10,
+            p_oracle,
+            oracle_fee: U256::ZERO,
+            p_oracle_up_active,
+            max_oracle_dn_pow: pow,
+            in_precision: U256::from(1u64),
+            out_precision: U256::from(1u64),
+            static_antifee: false,
+        }
     }
 
     #[test]
@@ -365,7 +351,7 @@ mod tests {
         let p_o = WAD * U256::from(3000u64);
         let p_o_up = WAD * U256::from(3010u64);
 
-        let (state, _, _) = make_state(100, 10, 0, bx, by, p_o, p_o_up);
+        let state = make_state(&bx, &by, p_o, p_o_up);
         let result = calc_swap_out(true, U256::ZERO, &state).unwrap();
         assert_eq!(result.out_amount, U256::ZERO);
         assert_eq!(result.in_amount, U256::ZERO);
@@ -375,16 +361,13 @@ mod tests {
     fn calc_swap_out_pump_produces_output() {
         let mut bx = HashMap::new();
         let mut by = HashMap::new();
-        // Band 0: has collateral (ETH), some borrowed (USD)
         bx.insert(0i64, WAD * U256::from(100u64));
         by.insert(0i64, WAD * U256::from(10u64));
 
         let p_o = WAD * U256::from(2000u64);
         let p_o_up = WAD * U256::from(2010u64);
 
-        let (state, _, _) = make_state(100, 10, 0, bx, by, p_o, p_o_up);
-
-        // Swap some borrowed tokens in, expect collateral out
+        let state = make_state(&bx, &by, p_o, p_o_up);
         let dx = WAD * U256::from(100u64);
         let result = calc_swap_out(true, dx, &state).unwrap();
 
@@ -397,16 +380,13 @@ mod tests {
     fn calc_swap_out_dump_produces_output() {
         let mut bx = HashMap::new();
         let mut by = HashMap::new();
-        // Band 0: has borrowed tokens (USD), some collateral
         bx.insert(0i64, WAD * U256::from(10000u64));
         by.insert(0i64, WAD * U256::from(5u64));
 
         let p_o = WAD * U256::from(2000u64);
         let p_o_up = WAD * U256::from(2010u64);
 
-        let (state, _, _) = make_state(100, 10, 0, bx, by, p_o, p_o_up);
-
-        // Swap some collateral in, expect borrowed out
+        let state = make_state(&bx, &by, p_o, p_o_up);
         let dy = WAD;
         let result = calc_swap_out(false, dy, &state).unwrap();
 
@@ -422,8 +402,7 @@ mod tests {
         let p_o = WAD * U256::from(2000u64);
         let p_o_up = WAD * U256::from(2010u64);
 
-        let (state, _, _) = make_state(100, 10, 0, bx, by, p_o, p_o_up);
-
+        let state = make_state(&bx, &by, p_o, p_o_up);
         let result = calc_swap_out(true, WAD * U256::from(100u64), &state).unwrap();
         assert_eq!(result.out_amount, U256::ZERO);
     }

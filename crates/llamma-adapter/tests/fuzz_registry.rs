@@ -256,7 +256,14 @@ async fn run_registry_fuzz(rpc_url: &str, registry_toml: &str) {
                 }
             };
 
-            let pool = build_pool(&raw_state);
+            let pool = match build_pool(&raw_state) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("  SKIP {}: build_pool failed: {e}", entry.name);
+                    skipped.fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+            };
 
             let mut p = 0u64;
             let mut m = 0u64;

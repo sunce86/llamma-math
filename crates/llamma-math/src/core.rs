@@ -155,6 +155,8 @@ pub fn wad_exp(x: I256) -> Option<U256> {
     // = 0x29d9dc38563c32e5c2f6dc192ee70ef65f9978af3
     let scale = U256::from_str_radix("29d9dc38563c32e5c2f6dc192ee70ef65f9978af3", 16).unwrap();
     let shift: I256 = I256::try_from(195).unwrap().wrapping_sub(k);
+    // Safe: input bounds (lines 63-72) guarantee x ∈ (-42e18, 135e18),
+    // so k = round(x/ln2) ∈ (-61, 195), making shift ∈ (0, 256).
     let shift_u: usize = shift.as_i64() as usize;
 
     let r_uint: U256 = r.into_raw();

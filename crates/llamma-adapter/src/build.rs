@@ -6,7 +6,7 @@
 
 use alloy_primitives::{I256, U256};
 use llamma_math::constants::WAD;
-use llamma_math::pool::LlammaPool;
+use llamma_math::pool::{LlammaPool, PoolError};
 use std::collections::HashMap;
 
 /// Raw on-chain state of a LLAMMA pool, ready to be converted into a
@@ -48,7 +48,12 @@ pub struct RawLlammaState {
 }
 
 /// Build a [`LlammaPool`] from raw state. Pure function — no I/O.
-pub fn build_pool(state: &RawLlammaState) -> LlammaPool {
+///
+/// Returns `Err(PoolError::InvalidParams)` if `a <= 1` or precision values are zero.
+pub fn build_pool(state: &RawLlammaState) -> Result<LlammaPool, PoolError> {
+    if state.a <= U256::from(1u64) {
+        return Err(PoolError::InvalidParams);
+    }
     let a = state.a;
     let a_minus_1 = a - U256::from(1u64);
 
