@@ -16,6 +16,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 alloy = { version = "1.7", features = ["provider-http", "contract", "sol-types"] }
+proptest = "1"
 
 [features]
 default = []
