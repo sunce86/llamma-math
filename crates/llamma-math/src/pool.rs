@@ -46,107 +46,42 @@ impl std::fmt::Display for PoolError {
 
 impl std::error::Error for PoolError {}
 
-/// LLAMMA pool state snapshot at a specific block.
-///
-/// All fields correspond to on-chain storage variables in `AMM.vy`.
-/// Oracle price is an external input (read separately from the oracle contract).
-///
-/// Construct via [`llamma_adapter::build_pool`] or [`LlammaPool::new`].
+/// LLAMMA pool state snapshot. Construct via `LlammaPool::new` or `llamma_adapter::build_pool`.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LlammaPool {
-    /// Amplification parameter.
-    ///
-    /// `AMM.vy`: `A: public(immutable(uint256))`
     pub a: U256,
-
-    /// `A - 1`. Precomputed to avoid repeated subtraction.
-    ///
-    /// `AMM.vy`: `Aminus1: immutable(uint256)`
     pub a_minus_1: U256,
-
-    /// Base price — price corresponding to band 0.
-    /// Already adjusted for `rate_mul` (i.e. `BASE_PRICE * rate_mul / 1e18`).
-    ///
-    /// `AMM.vy`: `self._base_price()` = `BASE_PRICE * self._rate_mul() / 10**18`
+    /// `BASE_PRICE * rate_mul / 1e18`
     pub base_price: U256,
-
-    /// `ln(A / (A - 1)) * 1e18`. Precomputed, passed to constructor.
-    ///
-    /// `AMM.vy`: `LOG_A_RATIO: immutable(int256)`
+    /// `ln(A / (A-1)) * 1e18`
     pub log_a_ratio: I256,
-
-    /// `(A / (A - 1))^50`. Precomputed, used for band traversal bounds.
-    ///
-    /// `AMM.vy`: `MAX_ORACLE_DN_POW: immutable(uint256)`
+    /// `(A / (A-1))^50`
     pub max_oracle_dn_pow: U256,
-
-    /// `sqrt(A / (A - 1)) * 1e18`. Precomputed.
-    ///
-    /// `AMM.vy`: `SQRT_BAND_RATIO: immutable(uint256)`
+    /// `sqrt(A / (A-1)) * 1e18`
     pub sqrt_band_ratio: U256,
-
-    /// Precision multiplier for borrowed token: `10^(18 - borrowed_decimals)`.
-    ///
-    /// `AMM.vy`: `BORROWED_PRECISION: immutable(uint256)`
+    /// `10^(18 - borrowed_decimals)`
     pub borrowed_precision: U256,
-
-    /// Precision multiplier for collateral token: `10^(18 - collateral_decimals)`.
-    ///
-    /// `AMM.vy`: `COLLATERAL_PRECISION: immutable(uint256)`
+    /// `10^(18 - collateral_decimals)`
     pub collateral_precision: U256,
-
-    /// Static fee parameter.
-    ///
-    /// `AMM.vy`: `fee: public(uint256)`
     pub fee: U256,
-
-    /// Current active band.
-    ///
-    /// `AMM.vy`: `active_band: public(int256)`
     pub active_band: i64,
-
-    /// Lowest non-empty band.
-    ///
-    /// `AMM.vy`: `min_band: public(int256)`
     pub min_band: i64,
-
-    /// Highest non-empty band.
-    ///
-    /// `AMM.vy`: `max_band: public(int256)`
     pub max_band: i64,
-
-    /// Borrowed token (x) amounts per band.
-    ///
-    /// `AMM.vy`: `bands_x: public(HashMap[int256, uint256])`
     pub bands_x: HashMap<i64, U256>,
-
-    /// Collateral token (y) amounts per band.
-    ///
-    /// `AMM.vy`: `bands_y: public(HashMap[int256, uint256])`
     pub bands_y: HashMap<i64, U256>,
-
-    /// Oracle price, already limited by `limit_p_o`.
-    /// This is `p_o[0]` from `_price_oracle_ro()`.
+    /// `p_o[0]` from `_price_oracle_ro()`, limited by `limit_p_o`.
     pub p_oracle: U256,
-
-    /// Dynamic fee component from oracle price limiting.
-    /// This is `p_o[1]` from `_price_oracle_ro()`.
+    /// `p_o[1]` from `_price_oracle_ro()`.
     pub oracle_fee: U256,
-
-    /// Whether to use static antifee (computed once before the loop)
-    /// or dynamic antifee (recomputed per band via `get_dynamic_fee`).
-    ///
-    /// - `true` — crvUSD mint markets (Vyper 0.3.7): antifee is static.
-    /// - `false` — Llamalend markets (Vyper 0.4.x): antifee is per-band.
+    /// `true` = crvUSD mint (Vyper 0.3.7, static antifee),
+    /// `false` = Llamalend (Vyper 0.4.x, per-band antifee).
     pub static_antifee: bool,
 }
 
 impl LlammaPool {
-    /// Create a new `LlammaPool` from all required parameters.
-    ///
-    /// Returns `Err(PoolError::InvalidParams)` if `a <= 1` or precision values are zero.
+    /// Returns `Err(InvalidParams)` if `a <= 1` or precision values are zero.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         a: U256,
@@ -195,17 +130,7 @@ impl LlammaPool {
         })
     }
 
-    /// Compute amount of token `j` received for swapping `dx` of token `i`.
-    ///
-    /// Mirrors `AMM.vy::get_dy(i, j, in_amount)`.
-    ///
-    /// # Arguments
-    /// * `i` — input token index (0 = borrowed, 1 = collateral)
-    /// * `j` — output token index
-    /// * `dx` — input amount in native token decimals
-    ///
-    /// # Returns
-    /// Output amount in native token decimals, or error.
+    /// `AMM.vy::get_dy(i, j, in_amount)`. Token indices: 0 = borrowed, 1 = collateral.
     pub fn get_amount_out(&self, i: usize, j: usize, dx: U256) -> Result<U256, PoolError> {
         // AMM.vy L943: assert (i == 0 and j == 1) or (i == 1 and j == 0)
         if !((i == 0 && j == 1) || (i == 1 && j == 0)) {
@@ -262,12 +187,7 @@ impl LlammaPool {
         Ok(result.out_amount / out_precision)
     }
 
-    /// Current spot price in the active band.
-    ///
-    /// Mirrors `AMM.vy::get_p()`.
-    ///
-    /// # Returns
-    /// Price at 1e18 base, or error.
+    /// `AMM.vy::get_p()`. Returns price in WAD (1e18).
     pub fn spot_price(&self) -> Result<U256, PoolError> {
         let p_o_up = self.compute_p_oracle_up(self.active_band)?;
         let x = *self.bands_x.get(&self.active_band).unwrap_or(&U256::ZERO);
@@ -276,9 +196,7 @@ impl LlammaPool {
         get_p(x, y, self.p_oracle, p_o_up, self.a, self.a_minus_1).ok_or(PoolError::MathError)
     }
 
-    /// Compute `_p_oracle_up(n)` for a given band.
-    ///
-    /// Internal helper — computes `base_price * exp(-n * log_a_ratio) / WAD`.
+    /// `base_price * exp(-n * log_a_ratio) / WAD`
     fn compute_p_oracle_up(&self, n: i64) -> Result<U256, PoolError> {
         p_oracle_up(n, self.base_price, self.log_a_ratio).ok_or(PoolError::MathError)
     }

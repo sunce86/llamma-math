@@ -39,58 +39,29 @@ pub struct DetailedTrade {
     pub last_tick_j: U256,
 }
 
-/// Parameters describing the current state of a LLAMMA pool,
-/// needed to compute a swap.
+/// Pool state needed to compute a swap.
 pub struct SwapState<'a> {
-    /// Amplification parameter.
     pub a: U256,
-    /// A - 1
     pub a_minus_1: U256,
-    /// Static fee (from pool storage).
     pub fee: U256,
-    /// Borrowed token amounts per band.
     pub bands_x: &'a HashMap<i64, U256>,
-    /// Collateral token amounts per band.
     pub bands_y: &'a HashMap<i64, U256>,
-    /// Current active band.
     pub active_band: i64,
-    /// Lowest non-empty band.
     pub min_band: i64,
-    /// Highest non-empty band.
     pub max_band: i64,
-    /// Oracle price (p_o) — already limited by caller.
     pub p_oracle: U256,
-    /// Dynamic fee component from oracle price limiting.
     pub oracle_fee: U256,
-    /// Upper oracle price for band `active_band`.
-    /// Caller computes this via `p_oracle_up(active_band, ...)`.
+    /// `p_oracle_up(active_band)`, precomputed by caller.
     pub p_oracle_up_active: U256,
-    /// Precomputed: `(A / (A-1))^50` — max oracle dn power.
     pub max_oracle_dn_pow: U256,
-    /// Precision of borrowed token (10^(18-decimals)).
     pub in_precision: U256,
-    /// Precision of collateral token (10^(18-decimals)).
     pub out_precision: U256,
-    /// Use static antifee (crvUSD mint, Vyper 0.3.7) vs per-band (Llamalend, Vyper 0.4.x).
     pub static_antifee: bool,
 }
 
-/// Calculate swap output amount via band traversal.
-///
-/// This is the core LLAMMA swap function.
-///
-/// `AMM.vy` L787–927: `calc_swap_out`
-///
-/// # Arguments
-///
-/// * `pump` — `true` = buying collateral (borrowable in, collateral out, going up);
-///   `false` = selling collateral (collateral in, borrowable out, going down).
-/// * `in_amount` — amount of input token (in internal precision, i.e. already scaled).
-/// * `state` — current pool state.
-///
-/// # Returns
-///
-/// A `DetailedTrade` describing the swap result, or `PoolError::MathError`.
+/// `AMM.vy` L787–927: `calc_swap_out`.
+/// `pump` = true for buying collateral (going up), false for selling (going down).
+/// `in_amount` is already scaled by precision.
 pub fn calc_swap_out(
     pump: bool,
     in_amount: U256,

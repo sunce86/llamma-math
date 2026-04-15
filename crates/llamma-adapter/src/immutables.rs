@@ -17,42 +17,22 @@
 
 use alloy_primitives::{I256, U256};
 
-/// Immutable parameters extracted from a LLAMMA AMM contract's bytecode.
-///
-/// These are set at deployment time and never change.
+/// Deploy-time constants extracted from LLAMMA AMM bytecode.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LlammaImmutables {
-    /// Amplification parameter.
     pub a: U256,
-    /// `ln(A / (A - 1)) * 1e18`, computed by Vyper's integer log at deploy time.
+    /// `ln(A / (A-1)) * 1e18`
     pub log_a_ratio: I256,
-    /// `(A / (A - 1))^50 * 1e18`.
+    /// `(A / (A-1))^50 * 1e18`
     pub max_oracle_dn_pow: U256,
-    /// `10^(18 - collateral_decimals)`.
+    /// `10^(18 - collateral_decimals)`
     pub collateral_precision: U256,
-    /// Whether the contract uses static antifee (Vyper 0.3.x) or per-band (0.4.x).
-    /// Detected from bytecode prefix: `0x60` = Vyper 0.3.x (static), `0x5f` = 0.4.x (dynamic).
+    /// `0x60` prefix = Vyper 0.3.x (static), `0x5f` = 0.4.x (dynamic).
     pub static_antifee: bool,
 }
 
-/// Extract immutables from a LLAMMA AMM contract's deployed bytecode.
-///
-/// # Algorithm
-///
-/// 1. Parse the last 20 32-byte words from the bytecode.
-/// 2. Search backwards for a word matching the known `A` value.
-/// 3. Validate by checking the next word equals `A - 1`.
-/// 4. Read LOG_A_RATIO, MAX_ORACLE_DN_POW, and COLLATERAL_PRECISION
-///    at known offsets from A.
-///
-/// # Arguments
-///
-/// * `bytecode` — full deployed bytecode (hex-decoded bytes)
-/// * `a` — the amplification parameter A, read from `A()` view function
-///
-/// # Returns
-///
-/// `Some(LlammaImmutables)` if extraction succeeds, `None` on parse error.
+/// Extract immutables from deployed bytecode. Finds A/A-1 pattern in
+/// the last 20 words and reads values at known offsets.
 pub fn extract_immutables(bytecode: &[u8], a: U256) -> Option<LlammaImmutables> {
     // Detect Vyper version from bytecode prefix:
     // 0x60 (PUSH1) = Vyper 0.3.x → static antifee
